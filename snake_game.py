@@ -75,8 +75,15 @@ class Snake:
             x, y = block[0], block[1]
             # Create gradient surface
             gradient = pygame.Surface((BLOCK_SIZE, BLOCK_SIZE), pygame.SRCALPHA)
-            start_color = (76, 175, 80)  # Light green
-            end_color = (56, 142, 60)    # Dark green
+            
+            # Use snake's color property for gradient
+            if self.color == (255, 0, 0):  # Red snake
+                start_color = (255, 0, 0)  # Bright red
+                end_color = (200, 0, 0)    # Dark red
+            else:  # Green snake
+                start_color = (76, 175, 80)  # Light green
+                end_color = (56, 142, 60)    # Dark green
+                
             for j in range(BLOCK_SIZE):
                 ratio = j / BLOCK_SIZE
                 color = (
@@ -141,18 +148,51 @@ class InsultSystem:
         self.insult_cooldown = 100
         return self.current_insult
 
-def game_loop():
-    player_snake = Snake((76, 175, 80), [100, 50])
-    red_snake = Snake((255, 82, 82), [600, 600])
-    food = Food()
-    insult_system = InsultSystem()
-    font = pygame.font.SysFont('Arial', 12)
-
+def show_game_over_screen():
+    font_large = pygame.font.SysFont('Arial', 48)
+    font_small = pygame.font.SysFont('Arial', 24)
+    
+    game_over_text = font_large.render('You Lose!', True, WHITE)
+    restart_text = font_small.render('Press SPACE to restart or ESC to quit', True, WHITE)
+    
+    game_over_rect = game_over_text.get_rect(center=(WIDTH/2, HEIGHT/2 - 50))
+    restart_rect = restart_text.get_rect(center=(WIDTH/2, HEIGHT/2 + 50))
+    
+    window.fill(BLACK)
+    window.blit(game_over_text, game_over_rect)
+    window.blit(restart_text, restart_rect)
+    pygame.display.update()
+    
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                pygame.quit()
-                sys.exit()
+                return False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    return True
+                if event.key == pygame.K_ESCAPE:
+                    return False
+    
+def game_loop():
+    # Start player in center of screen
+    player_start_pos = [WIDTH//2, HEIGHT//2]
+    player_snake = Snake((76, 175, 80), player_start_pos)
+    
+    # Start red snake in corner
+    red_snake = Snake((255, 0, 0), [WIDTH-100, HEIGHT-100])  # Pure red color
+    
+    food = Food()
+    insult_system = InsultSystem()
+    font = pygame.font.SysFont('Arial', 12)
+    
+    global SPEED
+    SPEED = 10  # Reset speed at start of each game
+
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP:
                     player_snake.change_direction('UP')
@@ -180,8 +220,11 @@ def game_loop():
         # Check collisions
         if (player_snake.check_collision() or
             check_snake_collision(player_snake, red_snake)):
-            break
-
+            if show_game_over_screen():
+                return True  # Restart game
+            else:
+                return False  # Quit game
+            
         # Draw game elements
         player_snake.draw()
         red_snake.draw()
@@ -198,7 +241,7 @@ def game_loop():
         pygame.display.update()
         clock.tick(SPEED)
 
-    pygame.quit()
+    return False
 
 def update_red_snake(red_snake, player_snake):
     # Simple AI for red snake
@@ -210,13 +253,13 @@ def update_red_snake(red_snake, player_snake):
     
     # Update insult
     if red_snake.insult_cooldown <= 0:
-        red_snake.insult = f"Red Snake: {random.choice([
+        red_snake.insult = random.choice([
             'You move like a snail!',
             'Is that all you\'ve got?',
             'My grandma plays better!',
             'You\'re making this too easy!',
             'Catch me if you can!'
-        ])}"
+        ])
         red_snake.insult_cooldown = 100
     else:
         red_snake.insult_cooldown -= 1
@@ -234,4 +277,8 @@ def check_snake_collision(snake1, snake2):
     return False
 
 if __name__ == '__main__':
-    game_loop()
+    playing = True
+    while playing:
+        playing = game_loop()
+    pygame.quit()
+    sys.exit()
